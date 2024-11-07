@@ -1,10 +1,8 @@
 package Logic;
 
 import Entities.ClearedSection;
-import Entities.EndGameResponse;
 import Entities.MoveResponse;
 import Entities.Response;
-
 import java.util.List;
 
 public class EndGameChecker {

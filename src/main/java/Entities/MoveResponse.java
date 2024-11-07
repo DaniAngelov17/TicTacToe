@@ -1,7 +1,6 @@
 package Entities;
-import GUI.MainWindow;
 
-import java.util.List;
+import GUI.MainWindow;
 import java.util.List;
 
 public class MoveResponse extends Response {

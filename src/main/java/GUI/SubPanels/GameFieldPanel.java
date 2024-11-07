@@ -1,9 +1,9 @@
 package GUI.SubPanels;
+
 import Entities.ClearedSection;
 import Entities.IAction;
 import Entities.Move;
 import Entities.MoveResponse;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;

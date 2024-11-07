@@ -3,9 +3,9 @@ package Entities;
 import java.util.Objects;
 
 public class ClearedSection {
-    private int rowStart;
-    private int colStart;
-    private Player clearedBy;
+    private final int rowStart;
+    private final int colStart;
+    private final Player clearedBy;
 
     public ClearedSection( int rowStart, int colStart, Player clearedBy){
         this.rowStart = rowStart;

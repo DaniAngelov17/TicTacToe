@@ -41,6 +41,5 @@ public class GUI_Manager {
     private static void popUpError(String errorMessage)
     {
         JOptionPane.showMessageDialog(new JFrame(), errorMessage, "Error Message", JOptionPane.ERROR_MESSAGE);
-        return;
     }
 }
