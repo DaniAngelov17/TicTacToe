@@ -1,6 +1,8 @@
 package Logic;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class ClearedSectionChecker {
     private HashMap<String, int[][]> locations;
@@ -18,63 +20,30 @@ public class ClearedSectionChecker {
         locations.put("2_2", new int[][]{{6, 6}, {6, 7}, {6, 8}, {7, 6}, {7, 7}, {7, 8}, {8, 6}, {8, 7}, {8, 8}});
     }
 
-    public static int[] checkForClearedSections(int[][] representation){
-        int saved_i = -1;
-        int saved_j = -1;
-        boolean first = true;
-        for (int k = 0; k < 9; k+=3) {
-            int[][]section = new int[3][3];
-
-            for (int i = k, f = 0; i < k + 3; i++,f++) {
-                for (int j = 0, r = 0; j < 3; j++,r++) {
-                    if(first){
-                        saved_i = i;
-                        saved_j = j;
-                        first = false;
+    /**
+     *
+     * @param representation of the board
+     * @return Cleared section
+     * Partitions the board and calls helper functions to check the partitions
+     */
+    public static List<int[]> checkForClearedSections(int[][] representation) {
+        List<int[]> clearedSections = new ArrayList<>();
+        for (int k = 0; k < 9; k += 3) {
+            for (int startCol = 0; startCol < 9; startCol += 3) {
+                int[][] section = new int[3][3];
+                for (int i = k, f = 0; i < k + 3; i++, f++) {
+                    for (int j = startCol, r = 0; j < startCol + 3; j++, r++) {
+                        section[f][r] = representation[i][j];
                     }
-                    section[f][r] = representation[i][j];
+                }
+                if (checkForClearedSection(section)) {
+                    clearedSections.add(new int[]{k, startCol});
                 }
             }
-            if(checkForClearedSection(section)){
-                return new int[]{saved_i, saved_j};
-            }
-            saved_i = -1;
-            saved_j = -1;
-            first = true;
-            for (int i = k, f = 0; i < k + 3; i++,f++) {
-                for (int j = 3, r = 0; j < 6; j++,r++) {
-                    if(first){
-                        saved_i = i;
-                        saved_j = j;
-                        first = false;
-                    }
-                    section[f][r] = representation[i][j];
-                }
-            }
-            if(checkForClearedSection(section)){
-                return new int[]{saved_i, saved_j};
-            }
-            saved_i = -1;
-            saved_j = -1;
-            first = true;
-            for (int i = k, f = 0; i < k + 3; i++,f++) {
-                for (int j = 6, r = 0; j < 9; j++,r++) {
-                    if(first){
-                        saved_i = i;
-                        saved_j = j;
-                        first = false;
-                    }
-                    section[f][r] = representation[i][j];
-                }
-            }
-            if(checkForClearedSection(section)){
-                return new int[]{saved_i, saved_j};
-            }
-            saved_i = -1;
-            saved_j = -1;
         }
-        return new int[]{saved_i, saved_j};
+        return clearedSections;
     }
+
 
     public static boolean checkForClearedSection(int[][] board) {
         int size = board.length;

@@ -1,7 +1,7 @@
 package Managers;
 
 import Entities.Move;
-import Entities.MoveResponse;
+import Entities.Response;
 import Entities.StartAction;
 import GUI.MainWindow;
 
@@ -19,14 +19,14 @@ public class GUI_Manager {
     }
 
     private void handleRequest(Move request) {
-        MoveResponse mr = null;
+        Response response = null;
         try {
-            mr = manager.handleRequest(request); //todo use error method
+            response = manager.handleRequest(request); //todo use error method
         }catch (Exception ex){
             popUpError(ex.getMessage());
         }
-        if(mr != null){
-            window.updateGUI(mr);
+        if(response != null){
+            response.updateGUI(window);
         }
     }
 

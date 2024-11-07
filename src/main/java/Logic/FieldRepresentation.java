@@ -1,10 +1,13 @@
 package Logic;
 
+import Entities.ClearedSection;
 import Entities.MoveResponse;
 import Entities.Request;
 import Exceptions.NotAllowedMoveException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class FieldRepresentation {
     private int[][] representation;
@@ -42,13 +45,35 @@ public class FieldRepresentation {
     }
 
     public MoveResponse executeMove(Request request) throws NotAllowedMoveException {
-        if((!allowedMoves[request.move().y()][request.move().x()]) || representation[request.move().y()][request.move().x()] != 0){
+        // Check if the move is allowed and the cell is empty
+        if ((!allowedMoves[request.move().y()][request.move().x()]) || representation[request.move().y()][request.move().x()] != 0) {
             throw new NotAllowedMoveException();
         }
+
+        // Place the player's sign in the representation
         representation[request.move().y()][request.move().x()] = request.playerToTakeTurn().getSign();
+
+        // Update the allowed moves based on the new move
         createNewMoves(request.move().y(), request.move().x());
-        return new MoveResponse(this.representation, this.allowedMoves, (new ClearedSectionChecker()).checkForClearedSections(representation));
+
+        // Get the cleared sections from ClearedSectionChecker
+        List<int[]> clearedSectionCoordinates = (new ClearedSectionChecker()).checkForClearedSections(representation);
+
+        // If no sections are cleared, return a MoveResponse without any cleared sections
+        if (clearedSectionCoordinates.isEmpty()) {
+            return new MoveResponse(this.representation, this.allowedMoves, null);
+        }
+
+        // Create a list of ClearedSection objects for each cleared section found
+        List<ClearedSection> clearedSections = new ArrayList<>();
+        for (int[] coords : clearedSectionCoordinates) {
+            clearedSections.add(new ClearedSection(coords[0], coords[1], request.playerToTakeTurn()));
+        }
+
+        // Return a MoveResponse with the cleared sections
+        return new MoveResponse(this.representation, this.allowedMoves, clearedSections);
     }
+
 
     private void createNewMoves(int y, int x) {
         int index1 = y % 3; // row index for the subgrid

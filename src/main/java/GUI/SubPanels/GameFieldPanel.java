@@ -1,4 +1,5 @@
 package GUI.SubPanels;
+import Entities.ClearedSection;
 import Entities.IAction;
 import Entities.Move;
 import Entities.MoveResponse;
@@ -7,7 +8,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
 
 public class GameFieldPanel extends JPanel implements Component {
@@ -18,53 +19,29 @@ public class GameFieldPanel extends JPanel implements Component {
     private static final int BUTTON_SIZE = 50; // Fixed button size for consistent look
     private static final int PADDING = 10; // Padding around the grid
     private JPanel gridPanel;
-    private List<int[]> clearedSections;
-    private List<Integer> clearedSectionPlayers;
+    private List<ClearedSection> clearedSections;
+    private JLayeredPane layeredPane;
+    private JPanel overlayPanel;
 
     public GameFieldPanel(IAction<Move> onGameMove, int mainHeight) {
         this.onGameMove = onGameMove;
         this.buttons = new JButton[GRID_SIZE][GRID_SIZE];
         this.fieldState = new int[GRID_SIZE][GRID_SIZE];
         this.clearedSections = new ArrayList<>();
-        this.clearedSectionPlayers = new ArrayList<>();
         setLayout(new GridBagLayout());
         this.setBackground(Color.LIGHT_GRAY);
         initializeButtons(mainHeight);
     }
 
     private void initializeButtons(int mainHeight) {
-        gridPanel = new JPanel(new GridLayout(GRID_SIZE, GRID_SIZE, PADDING, PADDING)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2d = (Graphics2D) g;
-                g2d.setColor(Color.GRAY);
+        int totalSize = GRID_SIZE * (BUTTON_SIZE + PADDING);
+        layeredPane = new JLayeredPane();
+        layeredPane.setPreferredSize(new Dimension(totalSize, totalSize));
 
-                // Draw thicker lines to divide the grid into 9 larger squares
-                int gridWidth = getWidth();
-                int gridHeight = getHeight();
-                int subSquareSize = gridWidth / 3;
+        gridPanel = new JPanel(new GridLayout(GRID_SIZE, GRID_SIZE, PADDING, PADDING));
+        gridPanel.setOpaque(false);
+        gridPanel.setBounds(0, 0, totalSize, totalSize);
 
-                // Draw horizontal lines
-                for (int i = 1; i < 3; i++) {
-                    int y = i * subSquareSize;
-                    g2d.setStroke(new BasicStroke(3)); // Thicker lines
-                    g2d.drawLine(0, y, gridWidth, y);
-                }
-
-                // Draw vertical lines
-                for (int i = 1; i < 3; i++) {
-                    int x = i * subSquareSize;
-                    g2d.setStroke(new BasicStroke(3)); // Thicker lines
-                    g2d.drawLine(x, 0, x, gridHeight);
-                }
-
-                // Draw cleared sections
-                drawClearedSectionOverlay(g2d);
-            }
-        };
-
-        gridPanel.setOpaque(false); // Make the grid panel transparent
         for (int row = 0; row < GRID_SIZE; row++) {
             for (int col = 0; col < GRID_SIZE; col++) {
                 JButton button = createButton(row, col);
@@ -73,15 +50,33 @@ public class GameFieldPanel extends JPanel implements Component {
             }
         }
 
+        overlayPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                // Clear the background
+                g.setColor(new Color(0, 0, 0, 0)); // Transparent color
+                g.fillRect(0, 0, getWidth(), getHeight());
+
+                super.paintComponent(g);
+                drawClearedSectionOverlay((Graphics2D) g);
+            }
+        };
+        overlayPanel.setOpaque(false);
+        overlayPanel.setBounds(0, 0, totalSize, totalSize);
+
+        layeredPane.add(gridPanel, Integer.valueOf(0));
+        layeredPane.add(overlayPanel, Integer.valueOf(1));
+
+        setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.insets = new Insets(PADDING, PADDING, PADDING, PADDING);
-        add(gridPanel, gbc);
+        add(layeredPane, gbc);
 
-        int size = Math.min(mainHeight, GRID_SIZE * (BUTTON_SIZE + PADDING));
-        setPreferredSize(new Dimension(size, size));
+        setPreferredSize(new Dimension(totalSize, totalSize));
     }
+
 
     private JButton createButton(int row, int col) {
         JButton button = new JButton();
@@ -124,11 +119,11 @@ public class GameFieldPanel extends JPanel implements Component {
     }
 
     public void update(MoveResponse mr) {
-        this.fieldState = mr.occupiedRepresentation();
+        this.fieldState = mr.getOccupiedRepresentation();
 
         for (int row = 0; row < GRID_SIZE; row++) {
             for (int col = 0; col < GRID_SIZE; col++) {
-                int value = mr.occupiedRepresentation()[row][col];
+                int value = mr.getOccupiedRepresentation()[row][col];
                 JButton button = buttons[row][col];
                 switch (value) {
                     case 1:
@@ -146,15 +141,17 @@ public class GameFieldPanel extends JPanel implements Component {
             }
         }
 
-        highlightUsableSquares(mr.allowedMovesRepresentation());
+        highlightUsableSquares(mr.getAllowedMovesRepresentation());
 
         // Detailed debug output for cleared sections
-        System.out.println("Cleared Sections location first cell (update method):");
-        for (int coordinate : mr.clearedSection()) {
-            System.out.println(coordinate);
-        }
 
-        updateClearedSections(mr.clearedSection(), mr.occupiedRepresentation());
+        updateClearedSections(mr.getClearedSections());
+
+        System.out.println("Cleared Sections location first cell (update method):");
+        for (ClearedSection c:
+                clearedSections) {
+            System.out.println(c.getRowStart() + ", " + c.getColStart());
+        }
     }
 
     public void highlightUsableSquares(boolean[][] usableSquares) {
@@ -172,56 +169,62 @@ public class GameFieldPanel extends JPanel implements Component {
         }
     }
 
-    private void updateClearedSections(int[] clearedSections, int[][] occupiedRepresentation) {
-        System.out.println("Cleared Sections:");
-        for (int i = 0; i < clearedSections.length && clearedSections[0] != -1 && clearedSections[1] != -1; i += 2) {
-            int rowStart = clearedSections[i];
-            int colStart = clearedSections[i + 1];
-
-            System.out.println("Cleared section at: (" + rowStart + ", " + colStart + ")");
-
-            int playerSign = 0;
-            // Determine the player who cleared the section
-            for (int row = rowStart; row < rowStart + 3; row++) {
-                for (int col = colStart; col < colStart + 3; col++) {
-                    if (occupiedRepresentation[row][col] != 0) {
-                        playerSign = occupiedRepresentation[row][col];
-                        break;
-                    }
+    /**
+    This function updates the clearedSection that is used to draw in the overlay
+     */
+    private void updateClearedSections(List<ClearedSection> clearedSections) {
+        if (clearedSections != null) {
+            List<ClearedSection> newSections = new ArrayList<>();
+            for (ClearedSection clearedSection : clearedSections) {
+                if (clearedSection != null && this.clearedSections.stream().noneMatch(clearedSection::equals)) {
+                    newSections.add(clearedSection);
                 }
-                if (playerSign != 0) break;
             }
-
-            if (playerSign == 0) continue;
-
-            this.clearedSections.add(new int[] { rowStart, colStart });
-            clearedSectionPlayers.add(playerSign);
+            // Add all new sections to the clearedSections list after iteration
+            this.clearedSections.addAll(newSections);
         }
 
-        // Repaint to show the overlays
-        gridPanel.repaint();
+
+        // Trigger repaint to show all cleared sections
+        overlayPanel.repaint();
     }
 
+
+    /**
+    Update the Overlay
+     */
     private void drawClearedSectionOverlay(Graphics2D g2d) {
-        for (int i = 0; i < clearedSections.size(); i++) {
-            int[] section = clearedSections.get(i);
-            int rowStart = section[0];
-            int colStart = section[1];
-            int playerSign = clearedSectionPlayers.get(i);
+        for (ClearedSection section: clearedSections) {
 
-            // Determine the position and size of the overlay
-            int x = colStart * (BUTTON_SIZE + PADDING) + PADDING;
-            int y = rowStart * (BUTTON_SIZE + PADDING) + PADDING;
-            int size = BUTTON_SIZE * 3 + PADDING * 2;
+            int rowStart = section.getRowStart();
+            int colStart = section.getColStart();
+            int playerSign = section.getClearedBy().getSign();
 
-            // Set transparency
+            // Calculate overlay dimensions
+            Rectangle rectStart = buttons[rowStart][colStart].getBounds();
+            Rectangle rectEnd = buttons[rowStart + 2][colStart + 2].getBounds();
+            int x = rectStart.x;
+            int y = rectStart.y;
+            int width = rectEnd.x + rectEnd.width - rectStart.x;
+            int height = rectEnd.y + rectEnd.height - rectStart.y;
+
+            // Set a translucent color based on the player
             g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
-            g2d.setColor(playerSign == 1 ? Color.BLUE : Color.RED);
-            g2d.setFont(new Font("Arial", Font.BOLD, size));
+            g2d.setColor(playerSign == 1 ? new Color(0, 0, 255, 75) : new Color(255, 0, 0, 75)); // Transparent blue or red
 
-            // Draw the sign
-            g2d.drawString(playerSign == 1 ? "X" : "O", x, y + size - PADDING);
+            // Draw filled rectangle overlay for cleared section
+            g2d.fillRect(x, y, width, height);
+
+            // Draw the player's symbol in the center of the cleared section
             g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+            g2d.setFont(new Font("Arial", Font.BOLD, height));
+            String symbol = playerSign == 1 ? "X" : "O";
+            FontMetrics fm = g2d.getFontMetrics();
+            int textWidth = fm.stringWidth(symbol);
+            int textHeight = fm.getAscent();
+            int textX = x + (width - textWidth) / 2;
+            int textY = y + (height + textHeight) / 2 - fm.getDescent();
+            g2d.drawString(symbol, textX, textY);
         }
     }
 

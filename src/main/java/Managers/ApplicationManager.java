@@ -1,33 +1,37 @@
 package Managers;
 
-import Entities.Move;
-import Entities.MoveResponse;
-import Entities.Request;
-import Entities.StartAction;
+import Entities.*;
 import Exceptions.CannotStartException;
 import Exceptions.NotAllowedMoveException;
+import Logic.EndGameChecker;
 import Logic.FieldRepresentation;
 
 public class ApplicationManager {
 
     private final PlayerManager playerManager;
     private final FieldRepresentation fieldRepresentation;
+    private final EndGameChecker endGameChecker;
 
-    public ApplicationManager(PlayerManager playerManager, FieldRepresentation fieldRepresentation){
+    public ApplicationManager(PlayerManager playerManager, FieldRepresentation fieldRepresentation, EndGameChecker endGameChecker){
         this.playerManager = playerManager;
         this.fieldRepresentation = fieldRepresentation;
         //todo implement
+        this.endGameChecker = endGameChecker;
     }
 
-    public MoveResponse handleRequest(Move move) throws NotAllowedMoveException {
-        MoveResponse mr = null;
+    public Response handleRequest(Move move) throws NotAllowedMoveException {
+        Response response = null;
+        Player playerToMove = playerManager.getNextPlayer();
         try{
-            mr = fieldRepresentation.executeMove(new Request(playerManager.getNextPlayer(), move));
+            response = fieldRepresentation.executeMove(new Request(playerToMove, move));
         }catch (NotAllowedMoveException ex){
             playerManager.changeTurn();
             throw ex;
         }
-        return mr;
+        if(endGameChecker.checkEndgame(response)){
+            response = new EndGameResponse(playerToMove, response);
+        }
+        return response;
     }
 
     public void handleStart(StartAction startAction) throws CannotStartException {
